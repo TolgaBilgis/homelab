@@ -24,7 +24,7 @@
     - name: Display containerd version
       ansible.builtin.debug:
         msg: "Containerd version: {{ containerd_version.stdout }}"
-    
+
     - name: Ensure containerd configuration directory exists
       ansible.builtin.file:
         path: /etc/containerd
