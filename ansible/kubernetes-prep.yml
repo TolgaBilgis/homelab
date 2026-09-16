@@ -20,5 +20,3 @@
         regexp: '^(\s*[^#\s]+\s+\S+\s+swap\s+.*)$'
         replace: '# \1'
         backup: true
-
-
