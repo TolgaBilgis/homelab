@@ -1,0 +1,35 @@
+name: Check Ansible
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install checking tools
+        run: |
+          python3 -m venv /tmp/ansible-ci
+          /tmp/ansible-ci/bin/pip install --upgrade pip
+          /tmp/ansible-ci/bin/pip install ansible-lint
+          echo "/tmp/ansible-ci/bin" >> "$GITHUB_PATH"
+
+      - name: Check playbook syntax
+        run: >
+          ansible-playbook -i ansible/inventory.ini
+          ansible/baseline.yml --syntax-check
+
+      - name: Check Ansible best practices
+        run: ansible-lint ansible/
