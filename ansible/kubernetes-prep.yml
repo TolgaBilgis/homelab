@@ -1,0 +1,23 @@
+---
+- name: Prepare nodes for Kubernetes
+  hosts: homelab
+  become: true
+
+  tasks:
+    - name: Check active swap
+      ansible.builtin.command: swapon --show --noheadings
+      register: active_swap
+      changed_when: false
+
+    - name: Disable active swap
+      ansible.builtin.command: swapoff -a
+      when: active_swap.stdout | length > 0
+      changed_when: true
+
+    - name: Prevent swap from returning after reboot
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\s*[^#\s]+\s+\S+\s+swap\s+.*)$'
+        replace: '# \1'
+        backup: true
+
