@@ -1,0 +1,27 @@
+- name: Install container runtime
+  hosts: homelab
+  become: true
+
+  tasks:
+    - name: Install containerd
+      ansible.builtin.package:
+        name: containerd
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Enable and start containerd service
+      ansible.builtin.systemd:
+        name: containerd
+        enabled: true
+        state: started
+
+    - name: Check containerd version
+      ansible.builtin.command: containerd --version
+      register: containerd_version
+      changed_when: false
+
+    - name: Display containerd version
+      ansible.builtin.debug:
+        msg: "Containerd version: {{ containerd_version.stdout }}"
+
