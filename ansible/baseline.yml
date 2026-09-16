@@ -1,0 +1,30 @@
+---
+- name: Configure homelab nodes
+  hosts: homelab
+  become: true
+
+  tasks:
+    - name: Update installed packages
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: safe
+
+    - name: Install useful tools
+      ansible.builtin.apt:
+        name:
+          - curl
+          - git
+          - htop
+          - vim
+          - ca-certificates
+        state: present
+
+    - name: Check whether a reboot is needed
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Show reboot status
+      ansible.builtin.debug:
+        msg: "Reboot needed: {{ reboot_required.stat.exists }}"
