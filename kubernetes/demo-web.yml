@@ -17,6 +17,12 @@ spec:
         image: nginx:stable-alpine
         ports:
         - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 2
+          periodSeconds: 5
         resources:
           requests:
             memory: 32Mi
