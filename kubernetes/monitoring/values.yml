@@ -26,6 +26,10 @@ grafana:
     accessModes:
       - ReadWriteOnce
     size: 2Gi
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
   resources:
     requests:
       cpu: 100m

@@ -1,0 +1,146 @@
+---
+- name: Configure the node01 dashboard display
+  hosts: node01
+  become: true
+
+  vars:
+    dashboard_user: dashboard
+    dashboard_home: /home/dashboard
+    grafana_url: http://127.0.0.1:3000/dashboards
+
+  tasks:
+    - name: Install lightweight graphical display packages
+      ansible.builtin.apt:
+        name:
+          - xserver-xorg
+          - x11-xserver-utils
+          - openbox
+          - lightdm
+          - unclutter
+          - snapd
+        state: present
+        update_cache: true
+
+    - name: Ensure automatic-login group exists
+      ansible.builtin.group:
+        name: nopasswdlogin
+        state: present
+
+    - name: Create dedicated dashboard user
+      ansible.builtin.user:
+        name: "{{ dashboard_user }}"
+        home: "{{ dashboard_home }}"
+        create_home: true
+        shell: /bin/bash
+        password_lock: true
+        groups:
+          - video
+          - audio
+          - nopasswdlogin
+        append: true
+
+    - name: Ensure snap service is enabled
+      ansible.builtin.systemd:
+        name: snapd.socket
+        enabled: true
+        state: started
+
+    - name: Install Chromium
+      ansible.builtin.command:
+        cmd: snap install chromium
+        creates: /snap/bin/chromium
+
+    - name: Create Openbox configuration directory
+      ansible.builtin.file:
+        path: "{{ dashboard_home }}/.config/openbox"
+        state: directory
+        owner: "{{ dashboard_user }}"
+        group: "{{ dashboard_user }}"
+        mode: "0755"
+
+    - name: Configure dashboard browser startup
+      ansible.builtin.copy:
+        dest: "{{ dashboard_home }}/.config/openbox/autostart"
+        owner: "{{ dashboard_user }}"
+        group: "{{ dashboard_user }}"
+        mode: "0755"
+        content: |
+          xset s off
+          xset -dpms
+          xset s noblank
+          unclutter -idle 1 -root &
+
+          while ! curl --silent --fail --output /dev/null http://127.0.0.1:3000; do
+            sleep 5
+          done
+
+          /snap/bin/chromium \
+            --kiosk \
+            --no-first-run \
+            --noerrdialogs \
+            --disable-session-crashed-bubble \
+            --password-store=basic \
+            "{{ grafana_url }}" &
+      notify: Restart LightDM
+
+    - name: Configure LightDM automatic login
+      ansible.builtin.copy:
+        dest: /etc/lightdm/lightdm.conf.d/50-dashboard.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Seat:*]
+          autologin-user={{ dashboard_user }}
+          autologin-user-timeout=0
+          user-session=openbox
+      notify: Restart LightDM
+
+    - name: Configure persistent local Grafana forwarding
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/grafana-port-forward.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Local port forward to Kubernetes Grafana service
+          Wants=network-online.target
+          After=network-online.target kubelet.service
+
+          [Service]
+          Type=simple
+          User=tolga
+          Environment=KUBECONFIG=/home/tolga/.kube/config
+          ExecStart=/usr/bin/kubectl --namespace monitoring port-forward service/monitoring-grafana 3000:80 --address=127.0.0.1
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Grafana port forward
+
+    - name: Enable local Grafana forwarding
+      ansible.builtin.systemd:
+        name: grafana-port-forward.service
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Enable the graphical login manager
+      ansible.builtin.systemd:
+        name: lightdm
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart Grafana port forward
+      ansible.builtin.systemd:
+        name: grafana-port-forward.service
+        state: restarted
+        daemon_reload: true
+
+    - name: Restart LightDM
+      ansible.builtin.systemd:
+        name: lightdm
+        state: restarted
