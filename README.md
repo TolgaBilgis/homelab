@@ -12,7 +12,8 @@ A three-node Kubernetes homelab for learning infrastructure automation, networki
 - Two Nginx replicas deployed and reachable from the home network.
 - Pod replacement after deletion tested successfully.
 - HTTP readiness probe included in the Nginx manifest.
-- Helm and monitoring are the next stage; installation has not yet been verified.
+- Helm v4.3.0 installed and cluster access verified.
+- Monitoring release deployed with kube-prometheus-stack 91.4.1; Grafana login verified through port forwarding and an SSH tunnel.
 
 Status reflects repository configuration and checks performed during setup, not continuous health monitoring.
 
@@ -36,6 +37,8 @@ Versions observed during setup:
 | Kubernetes | v1.36.4 |
 | containerd | 2.2.1 |
 | Flannel image in committed manifest | v0.28.9 |
+| Helm | v4.3.0 |
+| kube-prometheus-stack chart | 91.4.1 |
 
 ## Network and remote access
 
@@ -68,6 +71,7 @@ SSH keys and client aliases allow connections such as `ssh node01`. Aliases are 
 | [kubernetes/kubeadm-init.yml](kubernetes/kubeadm-init.yml) | Control-plane initialization settings |
 | [kubernetes/networking/kube-flannel.yml](kubernetes/networking/kube-flannel.yml) | Flannel networking resources |
 | [kubernetes/demo-web.yml](kubernetes/demo-web.yml) | Nginx Deployment and NodePort Service |
+| [kubernetes/monitoring/values.yml](kubernetes/monitoring/values.yml) | Monitoring retention and resource settings |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | Ansible validation workflow |
 
 The inventory uses a local connection for node01, so the current playbooks are intended to run from node01. The other two nodes are managed over SSH.
@@ -123,6 +127,49 @@ View application logs:
 kubectl logs -l app=demo-web --tail=50 --prefix
 ```
 
+## Monitoring
+
+Helm release `monitoring` is installed in namespace `monitoring`. Helm reported revision 1 deployed, and Grafana browser access was tested successfully. Metric coverage and alert delivery still need verification.
+
+The committed values configure Prometheus for seven-day retention and a default 30-second scrape interval, with resource requests and limits for Prometheus, Grafana, and Alertmanager.
+
+Persistent storage has not been configured. Pod replacement can lose metric history and Grafana changes stored only in its local database. Chart-provisioned dashboards can be recreated.
+
+To install or update from node01 with Helm 4:
+
+```bash
+cd ~/homelab
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+  --version 91.4.1 --namespace monitoring --create-namespace \
+  --values kubernetes/monitoring/values.yml \
+  --wait --timeout 10m --rollback-on-failure
+```
+
+Check the release and pods:
+
+```bash
+helm list -n monitoring
+kubectl get pods -n monitoring -o wide
+```
+
+For temporary Grafana access, keep this command running on node01:
+
+```bash
+kubectl port-forward -n monitoring service/monitoring-grafana 3000:80
+```
+
+In a terminal on the desktop, keep an SSH tunnel open:
+
+```bash
+ssh -N -L 3000:127.0.0.1:3000 node01
+```
+
+Open http://localhost:3000 on the desktop. Use the Grafana account; do not store its password in Git. These forwarding sessions are temporary and must be restarted after they end.
+
+An HDMI dashboard on node01 is planned. Grafana can remain in Kubernetes, while a local graphical session and browser display it on the attached monitor.
+
 ## Git and CI workflow
 
 Edit configuration, validate it, commit, and push. GitHub Actions runs a syntax check for `ansible/baseline.yml` and `ansible-lint ansible/` on a GitHub-hosted runner.
@@ -140,8 +187,8 @@ Keep SSH private keys, kubeconfig/admin.conf, passwords, Tailscale authenticatio
 
 ## Next milestones
 
-- [ ] Install and verify Helm.
-- [ ] Deploy Prometheus and Grafana with settings sized for the available hardware.
+- [x] Install and verify Helm.
+- [x] Deploy Prometheus and Grafana with settings sized for the available hardware.
 - [ ] Configure persistent storage and backups.
 - [ ] Add alerts and test failure scenarios.
 - [ ] Extend CI to validate Kubernetes configuration.
