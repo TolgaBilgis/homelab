@@ -38,3 +38,17 @@
       ansible.builtin.command: sysctl -w net.ipv4.ip_forward=1
       when: ipv4_forwarding.stdout != "1"
       changed_when: true
+
+    - name: Load bridge networking module at boot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/kubernetes.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          br_netfilter
+
+    - name: Load bridge networking module now
+      ansible.builtin.command:
+        cmd: modprobe br_netfilter
+        creates: /sys/module/br_netfilter
