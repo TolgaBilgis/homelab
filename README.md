@@ -190,6 +190,8 @@ Keep SSH private keys, kubeconfig/admin.conf, passwords, Tailscale authenticatio
 - [x] Install and verify Helm.
 - [x] Deploy Prometheus and Grafana with settings sized for the available hardware.
 - [ ] Configure persistent storage and backups.
+- [ ] Back up and migrate Grafana, Prometheus, and Alertmanager local-path data to node01, then pin those monitoring workloads to node01 so either worker can be powered down without losing the dashboard.
+- [ ] Later convert the cluster to three control-plane nodes and replace local-path storage with replicated storage such as Longhorn for true node-failure recovery.
 - [ ] Add alerts and test failure scenarios.
 - [ ] Extend CI to validate Kubernetes configuration.
 - [ ] Add automated deployment from Git.
