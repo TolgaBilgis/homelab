@@ -1,0 +1,42 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: portfolio
+  namespace: argocd
+spec:
+  description: Portfolio website workloads
+  sourceRepos:
+    - git@github.com:TolgaBilgis/homelab.git
+  destinations:
+    - namespace: portfolio
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portfolio-site
+  namespace: argocd
+spec:
+  project: portfolio
+  source:
+    repoURL: git@github.com:TolgaBilgis/homelab.git
+    targetRevision: main
+    path: kubernetes/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: portfolio
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+      allowEmpty: false
