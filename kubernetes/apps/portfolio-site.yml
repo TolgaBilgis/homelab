@@ -42,9 +42,11 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/name: portfolio-site
+          matchLabelKeys:
+            - pod-template-hash
       containers:
         - name: portfolio-site
-          image: ghcr.io/tolgabilgis/portfolio-site@sha256:0fcaf9eef3a9ecd0cd224af99504734ef089a87155fc95ab7e84840ca842f55c
+          image: ghcr.io/tolgabilgis/portfolio-site@sha256:14f4985d06c747f0eb7ef1c9ea9f2b5b0acd15a77da60b11e4bc40b26bed5ae6
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
