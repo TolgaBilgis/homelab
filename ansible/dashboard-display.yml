@@ -6,7 +6,7 @@
   vars:
     dashboard_user: dashboard
     dashboard_home: /home/dashboard
-    grafana_url: http://127.0.0.1:3000/dashboards
+    grafana_url: "http://127.0.0.1:3000/d/e1RXnCbVz/kubernetes-dashboard-by-chever?from=now-6h&to=now&refresh=1m&var-namespace=$__all&var-pod=$__all&var-datasource=prometheus&var-netface=$__all&kiosk"
 
   tasks:
     - name: Install lightweight graphical display packages
