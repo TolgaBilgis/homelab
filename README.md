@@ -196,5 +196,3 @@ Keep SSH private keys, kubeconfig/admin.conf, passwords, Tailscale authenticatio
 - [ ] Extend CI to validate Kubernetes configuration.
 - [ ] Add automated deployment from Git.
 - [ ] Build a dashboard suitable for a small homelab display.
-
-Update this README after each verified milestone with the configuration, its purpose, and how it was tested. Keep planned work separate from completed work.
