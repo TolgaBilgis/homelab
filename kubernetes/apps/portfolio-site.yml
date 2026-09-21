@@ -46,7 +46,7 @@ spec:
             - pod-template-hash
       containers:
         - name: portfolio-site
-          image: ghcr.io/tolgabilgis/portfolio-site@sha256:14f4985d06c747f0eb7ef1c9ea9f2b5b0acd15a77da60b11e4bc40b26bed5ae6
+          image: ghcr.io/tolgabilgis/portfolio-site@sha256:c8776872977e9fe21fe33b02217f045474527c6c032160f43b0f1097df268afe
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
