@@ -202,9 +202,16 @@ display-switch grafana    # Show the existing Grafana dashboard
 display-switch login      # Open Google sign-in, then Calendar
 display-switch status     # Show the selected mode and service state
 display-switch restore    # Restore the original Grafana-only Openbox startup
+display-switch schedule status # Check scheduled sleep and current monitor state
+display-switch schedule off    # Disable scheduled sleep and wake the monitor
+display-switch schedule on     # Enable scheduled sleep again
 ```
 
 Use `display-switch grafana` for the everyday switch back to monitoring. The selected mode is saved across reboots. `monitor-kiosk.service` starts with the graphical session and restarts Chromium if it exits. `monitor-kiosk-refresh.timer` refreshes the browser daily at **4:05 a.m. America/New_York**, so the weekly view stays current.
+
+The physical monitor sleeps every day from **12:00 a.m. to 8:00 a.m. America/New_York**, in both Calendar and Grafana modes. The timezone automatically handles daylight-saving changes. Only the HDMI output is disabled; the node and browser keep running, and the 2560×1440 virtual screen is retained. Keyboard or mouse activity does not re-enable the HDMI signal overnight.
+
+`monitor-kiosk-power.timer` applies the current local-time policy every minute and after boot. The browser launcher also applies it when changing modes, so browser restarts and the 4:05 a.m. refresh do not wake the monitor overnight. To suspend this schedule and wake the monitor immediately, run `display-switch schedule off`; use `display-switch schedule on` to enable it again.
 
 Calendar uses its own persistent browser profile. Sign in directly on the monitor when needed; the session and native appearance settings survive browser restarts. To change the theme, open Calendar's gear menu and choose **Appearance**. Browser notification popups are disabled for the calendar kiosk. Grafana keeps its original browser profile, and `grafana-port-forward.service` remains enabled.
 
@@ -215,17 +222,19 @@ Calendar uses its own persistent browser profile. Sign in directly on the monito
 | `/usr/local/bin/display-switch` | Switch display modes or restore the original setup |
 | `/home/dashboard/.config/monitor-kiosk/launch` | Browser launcher |
 | `/home/dashboard/.config/monitor-kiosk/mode` | Saved display mode |
+| `/home/dashboard/.config/monitor-kiosk/monitor-power.py` | Eastern-time sleep policy and HDMI power control |
 | `/home/dashboard/.config/monitor-kiosk/original-autostart` | Path to the backed-up original Openbox startup |
 | `/home/dashboard/snap/chromium/common/calendar-kiosk` | Calendar browser profile; keep local because it contains the signed-in session |
 | `/etc/systemd/system/monitor-kiosk.service` | Browser supervision and startup |
 | `/etc/systemd/system/monitor-kiosk-refresh.{service,timer}` | Daily browser refresh |
+| `/etc/systemd/system/monitor-kiosk-power.{service,timer}` | Monitor sleep schedule for both display modes |
 | `/home/tolga/.local/share/monitor-kiosk/` | Local maintenance copies of the installed files and usage notes |
 
-For full rollback, `display-switch restore` stops and disables the kiosk service and refresh timer, restores the backed-up Openbox autostart, and restarts LightDM. The original Grafana startup is then used again.
+For full rollback, `display-switch restore` stops and disables the kiosk service, refresh timer, and sleep timer, wakes the monitor, restores the backed-up Openbox autostart, and restarts LightDM. The original Grafana startup is then used again.
 
 The Calendar switch was installed locally on node01. The committed [dashboard display playbook](ansible/dashboard-display.yml) still provisions the original Grafana-only startup; it does not reproduce the Calendar setup. Before reapplying that playbook to return to the original setup, run `display-switch restore` so the two browser launch methods do not compete.
 
-Validation on November 10, 2026: signed in on the physical monitor, confirmed native dark mode with multiple event colors and subscribed calendars, checked that the login and appearance survived browser relaunch, and exercised switching to Grafana and back to Calendar. The original startup backup and enabled systemd units were also checked.
+Validation on November 10, 2026: signed in on the physical monitor, confirmed native dark mode with multiple event colors and subscribed calendars, checked that the login and appearance survived browser relaunch, and exercised switching to Grafana and back to Calendar. The original startup backup and enabled systemd units were also checked. For the overnight schedule, verified HDMI off/on transitions while retaining the virtual resolution, checked that the timer is enabled, and tested midnight/8 a.m. boundaries and both daylight-saving transitions.
 
 ## Git and CI workflow
 
