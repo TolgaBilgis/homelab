@@ -16,7 +16,7 @@ A three-node Kubernetes homelab for learning infrastructure automation, networki
 - GitHub Actions builds and tests portfolio images, publishes to GHCR, and opens deployment PRs that auto-merge after required checks.
 - Argo CD automatically reconciles `kubernetes/apps` from `main`, with pruning and self-healing enabled.
 - Prometheus, Grafana, and Alertmanager deployed through kube-prometheus-stack, with local-path persistent storage configured.
-- Grafana dashboard displayed in kiosk mode on node01's attached monitor.
+- Google Calendar displayed in a dark fullscreen kiosk on node01's attached monitor, with commands to switch to Grafana and back.
 
 Status reflects configuration and setup checks, not continuous health monitoring.
 
@@ -81,7 +81,7 @@ The tunnel token is supplied through the `cloudflared-token` Kubernetes Secret, 
 | [kubernetes/networking/kube-flannel.yml](kubernetes/networking/kube-flannel.yml) | Flannel networking resources |
 | [kubernetes/demo-web.yml](kubernetes/demo-web.yml) | Nginx Deployment and NodePort Service |
 | [kubernetes/monitoring/values.yml](kubernetes/monitoring/values.yml) | Monitoring retention and resource settings |
-| [ansible/dashboard-display.yml](ansible/dashboard-display.yml) | Local Grafana kiosk display on node01 |
+| [ansible/dashboard-display.yml](ansible/dashboard-display.yml) | Original Grafana kiosk provisioning on node01; see [Monitor kiosk](#monitor-kiosk-on-node01) for the locally installed Calendar switch |
 | [kubernetes/storage/local-path-storage.yml](kubernetes/storage/local-path-storage.yml) | Node-local persistent-volume provisioner |
 | [kubernetes/apps/portfolio-site.yml](kubernetes/apps/portfolio-site.yml) | Portfolio namespace, Deployment, and Service |
 | [kubernetes/apps/cloudflared.yml](kubernetes/apps/cloudflared.yml) | Cloudflare Tunnel connectors |
@@ -99,7 +99,7 @@ The inventory uses a local connection for node01, so the current playbooks are i
 5. **Cluster bootstrap:** initialized node01 with kubeadm, installed Flannel, and joined node02 and node03 as workers.
 6. **First workload:** deployed two Nginx replicas, observed one on each worker, accessed the website through node01's NodePort, and verified replacement of a deleted pod.
 
-7. **Monitoring and display:** deployed the monitoring stack, configured local-path persistence, and set up a Grafana kiosk on node01.
+7. **Monitoring and display:** deployed the monitoring stack, configured local-path persistence, and added a dark Google Calendar kiosk on node01 with reversible switching to Grafana.
 8. **Application delivery:** containerized the portfolio, added image tests and publishing, and connected automated deployment PRs to Argo CD.
 9. **Public access:** connected Cloudflare Tunnel and verified the portfolio through the custom domain with HTTPS.
 
@@ -190,6 +190,43 @@ Open http://localhost:3000 on the desktop. Use the Grafana account; do not store
 
 The [dashboard display playbook](ansible/dashboard-display.yml) configures a dedicated local user, LightDM/Openbox, Chromium kiosk mode, and a local Grafana port-forward service on node01. It opens the Kubernetes Dashboard by Chever. Grafana allows anonymous Viewer access in the committed values; administration remains authenticated. Grafana is not published through the portfolio tunnel.
 
+## Monitor kiosk on node01
+
+The attached 2560×1440 HDMI monitor now defaults to the full Google Calendar weekly view in Chromium kiosk mode. Google Calendar's native dark theme is enabled, the left sidebar is collapsed, and browser tabs and the address bar are hidden. The native view preserves individual event colors and includes the account's selected calendars.
+
+Run these commands on node01 as `tolga`; they use sudo to manage the display service:
+
+```bash
+display-switch calendar   # Show Google Calendar
+display-switch grafana    # Show the existing Grafana dashboard
+display-switch login      # Open Google sign-in, then Calendar
+display-switch status     # Show the selected mode and service state
+display-switch restore    # Restore the original Grafana-only Openbox startup
+```
+
+Use `display-switch grafana` for the everyday switch back to monitoring. The selected mode is saved across reboots. `monitor-kiosk.service` starts with the graphical session and restarts Chromium if it exits. `monitor-kiosk-refresh.timer` refreshes the browser daily at **4:05 a.m. America/New_York**, so the weekly view stays current.
+
+Calendar uses its own persistent browser profile. Sign in directly on the monitor when needed; the session and native appearance settings survive browser restarts. To change the theme, open Calendar's gear menu and choose **Appearance**. Browser notification popups are disabled for the calendar kiosk. Grafana keeps its original browser profile, and `grafana-port-forward.service` remains enabled.
+
+### Installed configuration and recovery
+
+| Location | Purpose |
+| --- | --- |
+| `/usr/local/bin/display-switch` | Switch display modes or restore the original setup |
+| `/home/dashboard/.config/monitor-kiosk/launch` | Browser launcher |
+| `/home/dashboard/.config/monitor-kiosk/mode` | Saved display mode |
+| `/home/dashboard/.config/monitor-kiosk/original-autostart` | Path to the backed-up original Openbox startup |
+| `/home/dashboard/snap/chromium/common/calendar-kiosk` | Calendar browser profile; keep local because it contains the signed-in session |
+| `/etc/systemd/system/monitor-kiosk.service` | Browser supervision and startup |
+| `/etc/systemd/system/monitor-kiosk-refresh.{service,timer}` | Daily browser refresh |
+| `/home/tolga/.local/share/monitor-kiosk/` | Local maintenance copies of the installed files and usage notes |
+
+For full rollback, `display-switch restore` stops and disables the kiosk service and refresh timer, restores the backed-up Openbox autostart, and restarts LightDM. The original Grafana startup is then used again.
+
+The Calendar switch was installed locally on node01. The committed [dashboard display playbook](ansible/dashboard-display.yml) still provisions the original Grafana-only startup; it does not reproduce the Calendar setup. Before reapplying that playbook to return to the original setup, run `display-switch restore` so the two browser launch methods do not compete.
+
+Validation on November 10, 2026: signed in on the physical monitor, confirmed native dark mode with multiple event colors and subscribed calendars, checked that the login and appearance survived browser relaunch, and exercised switching to Grafana and back to Calendar. The original startup backup and enabled systemd units were also checked.
+
 ## Git and CI workflow
 
 Edit configuration, validate it, commit, and push. GitHub Actions runs a syntax check for `ansible/baseline.yml` and `ansible-lint ansible/` on a GitHub-hosted runner.
@@ -251,5 +288,6 @@ Keep SSH private keys, kubeconfig/admin.conf, passwords, Tailscale authenticatio
 - [x] Add automated portfolio deployment from Git with Argo CD.
 - [x] Publish the portfolio through Cloudflare Tunnel and a custom HTTPS domain.
 - [x] Configure a Grafana kiosk display on node01.
+- [x] Add a native dark Google Calendar kiosk with preserved event colors and reversible Grafana switching.
 
 Update this README after each verified milestone with the configuration, its purpose, and how it was tested. Keep planned work separate from completed work.
